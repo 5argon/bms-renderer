@@ -23,7 +23,10 @@
     "bms": "^2.0.0",
     "lodash": "^3.10.1",
     "minimist": "^1.2.0",
+    "ogg": "^1.2.5",
     "semver": "^5.1.0",
+    "vorbis": "git+https://github.com/doomjs/node-vorbis.git",
+    "wav": "^1.0.1",
     "yargs": "^4.2.0"
   },
   "devDependencies": {

@@ -1,24 +1,6 @@
 #!/usr/bin/env node
 'use strict'
 
-const argv = require('yargs')
-  .usage('Usage: \n$0 <input.bms> <output.wav>\n$0 [-s] [start_time] [-l] [length] <input.bms> <output.wav>')
-
-  .option('start', { alias: 's', type: "number" })
-  .default('start', 0)
-  .describe('start', 'Start time to render in seconds. Omit to render from the beginning.')
-
-  .option('length', { alias: 'l', type: "number" })
-  .default('length', 0)
-  .describe('length', 'Length to render in seconds. Omit to render to the end.')
-
-  .boolean('info')
-  .describe('info', 'Only prints the song info.')
-
-  .demand(2, 2)
-  .version()
-  .argv
-
 require('babel-polyfill')
 
 const childProcess = require('child_process')
@@ -26,9 +8,12 @@ const getNotes = require('./getNotes')
 const _ = require('lodash')
 const satisfies = require('semver').satisfies
 const Promise = require('bluebird')
+const fs = require('fs')
 
-const renderers = {
-  ffi (song, outfilepath) {
+const ogg = require('ogg').Encoder()
+const vorbis = require('vorbis').Encoder()
+
+function ffi (song, outfilepath, start, length) {
     const snd = require('./snd')
     const samples = { }
 
@@ -37,6 +22,7 @@ const renderers = {
     }
 
     process.stderr.write('Loading samples...\n')
+
     song.keysounds.forEach(function (samplepath) {
       var sound = samples[samplepath] = snd.read(samplepath)
       if (sound.samplerate !== 44100) {
@@ -54,8 +40,8 @@ const renderers = {
     }).filter('sound').value()
     process.stderr.write('Number of valid notes: ' + validNotes.length + '\n')
 
-    const shiftStartFrame = frameForTime(argv.start);
-    const lengthFrame = frameForTime(argv.length);
+    const shiftStartFrame = frameForTime(start);
+    const lengthFrame = frameForTime(length);
 
     var endSongFrame = _(validNotes).map(function (note) {
       var length = note.sound.frames
@@ -67,7 +53,7 @@ const renderers = {
     }).min()
 
     const startFrame = Math.min(skip + shiftStartFrame, endSongFrame);
-    const endFrame = argv.length == 0 ? endSongFrame : Math.min(startFrame + lengthFrame, endSongFrame);
+    const endFrame = length == 0 ? endSongFrame : Math.min(startFrame + lengthFrame, endSongFrame);
 
     const frames = endFrame - startFrame;
     
@@ -99,65 +85,40 @@ const renderers = {
 
         const floatFile = buffer.readFloatLE(position)
         const floatSound = soundBuffer.readFloatLE(i)
-        buffer.writeFloatLE(floatFile + floatSound, position)
+        buffer.writeFloatLE(Math.max(Math.min(floatFile + floatSound,1),-1), position)
       }
       process.stderr.write('.')
     })
     process.stderr.write('\n')
     process.stderr.write('Writing output!\n')
-    snd.write(outfilepath, { samplerate: 44100, channels: 2, frames: frames, buffer: buffer })
-  },
-  bmsampler (song, outfilepath) {
-    const stdin = [ ]
-    const writeKeysoundFactory = _.memoize(
-      note => _.once(() => stdin.push(JSON.stringify({
-        type: 'sample',
-        key: note.keysound,
-        path: note.src
-      }))),
-      note => note.keysound
-    )
-    const writeNote = note => stdin.push(JSON.stringify({
-      type: 'play',
-      key: note.keysound,
-      time: note.time
-    }))
-    const notes = song.data.filter(note => note.src)
-    notes.map(writeKeysoundFactory).forEach(thunk => thunk())
-    notes.forEach(writeNote)
-    stdin.push(JSON.stringify({ type: 'go' }))
-    childProcess.execFileSync('bmsampler', [ outfilepath ], {
-      input: stdin.join('\n'),
-      stdio: [ 'pipe', 'pipe', process.stderr ]
-    })
-  }
+
+  // snd.write(outfilepath, { samplerate: 44100, channels: 2, frames: frames, buffer: buffer })
+
+  // let outWav = fs.readFileSync(outfilepath)
+
+  // const chunkSize = outWav.readInt32LE(4)
+  // outWav.writeInt32LE(chunkSize + 2, 4) //increase overall size 2 bytes for the extension field
+  // outWav.writeInt32LE(18, 16) //to add extension field chunk size 16->18
+
+  // let modifiedWav = Buffer.alloc(outWav.length + 2)
+  // outWav.copy(modifiedWav,0,0,36) //stops at before extension size (cbSize)
+  // outWav.copy(modifiedWav,38,36) //left the extension field as 00 00 and copy the rest
+  // fs.writeFileSync(outfilepath,modifiedWav);
+
+  vorbis.pipe(ogg.stream())
+  ogg.pipe(fs.createWriteStream(outfilepath))
+  vorbis.write(buffer)
+  vorbis.end()
+
 }
 
-function canUseBmsampler () {
-  const BMSAMPLER_VERSION = '^0.2.0'
-  try {
-    const output = childProcess.execFileSync('bmsampler', [ '-v' ], { input: '', encoding: 'utf8' }).trim()
-    if (satisfies(output, BMSAMPLER_VERSION)) {
-      return true
-    } else {
-      console.error('bmsampler version ' + output + ' is incompatible with bms-renderer. Required version range: ' + BMSAMPLER_VERSION)
-      return false
-    }
-  } catch (e) {
-    return false
-  }
-}
-
+function render(filePath, outputFilePath, start, length)
 {
-  const filepath = argv._[0]
-  const outfilepath = argv._[1]
-  const partialRendering = (argv.start != 0 || argv.length != 0)
   Promise.coroutine(function* () {
-    const song = yield getNotes(filepath)
+    const song = yield getNotes(filePath)
     console.log(JSON.stringify(song.info, null, 2))
-    if (!argv.info) {
-      const render = (canUseBmsampler() && !partialRendering) ? renderers.bmsampler : renderers.ffi
-      render(song, outfilepath)
-    }
+    ffi(song, outputFilePath, start, length)
   })().done()
 }
+
+module.exports.render = render;
