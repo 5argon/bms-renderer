@@ -8,12 +8,8 @@ const getNotes = require('./getNotes')
 const _ = require('lodash')
 const satisfies = require('semver').satisfies
 const Promise = require('bluebird')
-const fs = require('fs')
 
-const ogg = require('ogg').Encoder()
-const vorbis = require('vorbis').Encoder()
-
-function ffi (song, outfilepath, start, length) {
+function makeBuffer(song, outfilepath, start, length) {
     const snd = require('./snd')
     const samples = { }
 
@@ -92,33 +88,18 @@ function ffi (song, outfilepath, start, length) {
     process.stderr.write('\n')
     process.stderr.write('Writing output!\n')
 
-  // snd.write(outfilepath, { samplerate: 44100, channels: 2, frames: frames, buffer: buffer })
-
-  // let outWav = fs.readFileSync(outfilepath)
-
-  // const chunkSize = outWav.readInt32LE(4)
-  // outWav.writeInt32LE(chunkSize + 2, 4) //increase overall size 2 bytes for the extension field
-  // outWav.writeInt32LE(18, 16) //to add extension field chunk size 16->18
-
-  // let modifiedWav = Buffer.alloc(outWav.length + 2)
-  // outWav.copy(modifiedWav,0,0,36) //stops at before extension size (cbSize)
-  // outWav.copy(modifiedWav,38,36) //left the extension field as 00 00 and copy the rest
-  // fs.writeFileSync(outfilepath,modifiedWav);
-
-  vorbis.pipe(ogg.stream())
-  ogg.pipe(fs.createWriteStream(outfilepath))
-  vorbis.write(buffer)
-  vorbis.end()
+  return buffer;
 
 }
 
 function render(filePath, outputFilePath, start, length)
 {
-  Promise.coroutine(function* () {
-    const song = yield getNotes(filePath)
+  return getNotes(filePath).then(song => {
     console.log(JSON.stringify(song.info, null, 2))
-    ffi(song, outputFilePath, start, length)
-  })().done()
+    var songBuffer = makeBuffer(song, outputFilePath, start, length)
+    console.log("Rendering done.")
+    return songBuffer
+  })
 }
 
 module.exports.render = render;
