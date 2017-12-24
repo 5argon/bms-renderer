@@ -3,6 +3,7 @@
 const fs = require('fs')
 const NotechartLoader = require('bemuse-notechart/loader').NotechartLoader
 const path = require('path')
+const tmp = require('tmp')
 const _ = require('lodash')
 const Promise = require('bluebird')
 
@@ -36,7 +37,7 @@ function getHash (times) {
     }
   }
   const data = _.sortBy(Object.keys(out)).join('\n')
-  fs.writeFileSync('/tmp/d' + Date.now() + '.nfo', data)
+  //fs.writeFileSync('/tmp/d' + Date.now() + '.nfo', data)
   return require('crypto').createHash('md5').update(data).digest('hex')
 }
 
