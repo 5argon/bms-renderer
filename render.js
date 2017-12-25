@@ -112,7 +112,7 @@ async function render(filePath, start, length)
       console.error(e)
     }
     debug("Rendering done.")
-    debug(songBuffer)
+    //debug(songBuffer)
 
     // let oggE = new ogg.Encoder()
     // let vorbisE = new vorbis.Encoder()
