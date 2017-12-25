@@ -9,10 +9,8 @@ const _ = require('lodash')
 const satisfies = require('semver').satisfies
 const Promise = require('bluebird')
 
-const ogg = require('ogg')
-const vorbis = require('vorbis')
-
-const development = false
+// const ogg = require('ogg')
+// const vorbis = require('vorbis')
 
 async function makeBuffer(song, start, length) {
   const snd = require('./snd')
@@ -116,28 +114,24 @@ async function render(filePath, start, length)
     debug("Rendering done.")
     debug(songBuffer)
 
-    let oggE = new ogg.Encoder()
-    let vorbisE = new vorbis.Encoder()
-
-    if(development)
-    {
-      vorbisE.pipe(oggE.stream())
-      oggE.pipe(fs.createWriteStream("./out.ogg"))
-      vorbisE.write(Buffer.from(songBuffer), (err) => {vorbisE.end()})
-    }
+    // let oggE = new ogg.Encoder()
+    // let vorbisE = new vorbis.Encoder()
+    // vorbisE.pipe(oggE.stream())
+    // oggE.pipe(fs.createWriteStream("./out.ogg"))
+    // vorbisE.write(Buffer.from(songBuffer), (err) => {vorbisE.end()})
 
     return songBuffer
 }
 
 function debug(message)
 {
-  console.log(message)
+  //console.log(message)
+  postMessage(["progress",message])
 }
 
 // for development purpose
-if(development)
 {
-  render("tana/vista_A.bms", 2,3)
+  //render("tana/vista_A.bms", 2,3)
   //render("dys/_dystopiahigh[ANOTHER].bms", 16,8)
 }
 
