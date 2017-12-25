@@ -12,7 +12,7 @@ var SF_FORMAT_FLOAT = 0x0006
 var SNDFILE = ref.types.void
 var SNDFILEPtr = ref.refType(SNDFILE)
 var SF_INFO = Struct({
-  frames: 'long',
+  frames: 'int64',
   samplerate: 'int32',
   channels: 'int32',
   format: 'int32',
@@ -36,12 +36,16 @@ exports.read = function (path) {
   var ptr = libsndfile.sf_open(path, SFM_READ, info.ref())
   if (ptr.isNull()) throw new Error('Cannot load ' + path)
 
+
   var sound = { }
   sound.frames = info.frames
   sound.samplerate = info.samplerate
   sound.channels = info.channels
 
   var size = 4 * sound.frames * sound.channels
+
+  //console.log(info.frames + " " + info.samplerate + " " + info.channels + " " + info.format + " " + info.sections + " " + info.seekable + " -> " + size)
+
   var buffer = new Buffer(size)
   libsndfile.sf_readf_float(ptr, buffer, sound.frames)
   sound.buffer = buffer
