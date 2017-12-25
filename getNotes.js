@@ -3,7 +3,6 @@
 const fs = require('fs')
 const NotechartLoader = require('bemuse-notechart/loader').NotechartLoader
 const path = require('path')
-const tmp = require('tmp')
 const _ = require('lodash')
 const Promise = require('bluebird')
 
